@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Global Air Quality Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+    body {
+        font-family: -apple-system, sans-serif;
+        margin: 0;
+        padding: 20px 40px;
+        background-color: #f5f5f5;
+        color: #222;
+    }
+
+    h1 {
+        font-size: 28px;
+        margin-bottom: 4px;
+    }
+
+    p.subtitle {
+        color: #666;
+        margin-top: 0;
+        margin-bottom: 20px;
+    }
+
+    #map {
+        height: 500px;
+        width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    #chart-container {
+        margin-top: 30px;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #chart-container h2 {
+        margin-top: 0;
+        font-size: 18px;
+        color: #333;
+    }
+</style>
+</head>
+<body>
+   <h1>Global Air Quality Tracker</h1>
+<p class="subtitle">Click a station marker to view live pollutant readings</p>
+    <div id="map"></div>
+
+<div id="chart-container">
+    <h2>Pollutant Levels</h2>
+    <canvas id="pollutantChart" width="400" height="200"></canvas>
+</div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const map = L.map('map').setView([12.9716, 77.5946], 11);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let pollutantChart = null;
+function showPollutantChart(readings) {
+   console.log(JSON.stringify(readings, null, 2));
+    const labels = readings.map(r => r.pollutant);
+        const values = readings.map(r => r.value);
+
+        if (pollutantChart) {
+            pollutantChart.destroy();
+        }
+
+        const ctx = document.getElementById('pollutantChart').getContext('2d');
+        pollutantChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Pollutant levels',
+                    data: values
+                }]
+            }
+        });
+    }
+
+    fetch('/api/stations')
+        .then(response => response.json())
+        .then(stations => {
+            stations.forEach(station => {
+                const marker = L.marker([station.lat, station.lon])
+                    .addTo(map)
+                    .bindPopup(`<b>${station.name}</b><br>Last reading: ${station.last_seen}`);
+
+marker.on('click', () => {
+    const chartContainer = document.getElementById('chart-container');
+
+    fetch(`/api/station/${station.id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                chartContainer.innerHTML = `<h2>Pollutant Levels</h2><p style="color: #b00020;">Unable to load data. Please try again.</p>`;
+                return;
+            }
+            chartContainer.innerHTML = `<h2>Pollutant Levels</h2><canvas id="pollutantChart" width="400" height="200"></canvas>`;
+            showPollutantChart(data);
+        })
+        .catch(error => {
+            chartContainer.innerHTML = `<h2>Pollutant Levels</h2><p style="color: #b00020;">Unable to load data. Please try again.</p>`;
+        });
+});
+            });
+        })
+        .catch(error => {
+            console.error('Failed to load stations:', error);
+        });
+</script>
+</body>
+</html>
