@@ -8,7 +8,7 @@ load_dotenv()
 
 app = Flask(__name__)
 
-API_KEY = "ab77cda49320082c9e0741e68f57fc9f13319c01ad8cdaf1030c33922a42f88f"
+API_KEY = os.getenv("OPENAQ_API_KEY")
 
 @app.route("/")
 def home():
